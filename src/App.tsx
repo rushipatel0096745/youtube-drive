@@ -5,14 +5,17 @@ import {
   Sun, Moon, Lock, Unlock, ChevronDown, User, LogOut,
   Scissors, Ruler, Zap, Palette, Heart,
   Flame, Music, Gamepad2, Cpu, Newspaper, Mic,
+  ListMusic, Trash2, Plus, RotateCw,
 } from "lucide-react";
 
 import { VideoCard } from "./components/VideoCard";
 import { Player } from "./components/Player";
 import { SkeletonCard } from "./components/SkeletonCard";
 import { BottomNav } from "./components/BottomNav";
+import { ChannelView } from "./components/ChannelView";
+import { PlaylistModal } from "./components/PlaylistModal";
 import { useWatchHistory } from "./hooks/useWatchHistory";
-import { useFavourites } from "./hooks/useFavourites";
+import { useDrivePlaylists } from "./hooks/useDrivePlaylists";
 import type { VideoItem, SourceFilter, SortOrder, AppTheme } from "./types";
 
 // ── Categories & Queries ─────────────────────────────────────────────────────
@@ -35,6 +38,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   Podcasts: Mic,
 };
 
+// Broad YouTube search queries across all channels worldwide
 const PRIVATE_CATEGORY_QUERIES: Record<string, string> = {
   All: "women haircut transformation salon makeover bob undercut",
   Short: "women short haircut pixie bob transformation salon makeover",
@@ -43,20 +47,141 @@ const PRIVATE_CATEGORY_QUERIES: Record<string, string> = {
   Colors: "hair color transformation balayage blonde salon dye makeover",
 };
 
-const NORMAL_CATEGORY_QUERIES: Record<string, string> = {
-  All: "trending popular viral videos",
-  Trending: "trending videos popular today",
-  Music: "top trending official music videos songs",
-  Gaming: "popular gaming gameplay walkthrough",
-  Tech: "latest technology gadgets reviews",
-  News: "top news headlines world today",
-  Podcasts: "popular podcast interviews full episodes",
+// 1-Unit Upload Playlists for Private Mode (Curated Indian creators, AI stories & top salons)
+const PRIVATE_CATEGORY_PLAYLISTS: Record<string, string[]> = {
+  All: [
+    "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers (Indian Salon Makeovers)
+    "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar (Indian Haircut Transformations)
+    "UUcf2r5wHnPukckUdWQMRahw", // Culture Cafe Studio (Undercut Pixie & Bob Makeovers)
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
+    "UUCJrJQz_r7MDHOfQcNPVZuw", // The Happy Radio (formerly Nom Nom Hedonist)
+    "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut (Indian Girls Headshave & Bob)
+    "UUCFFT7bZr09Tqo65vu5zPiQ", // Indian Girls Haircut
+    "UUDIqXqP9PL9fNH7CfbGeFsQ", // Haircut story (AI Indian Stories)
+    "UUyyAQ8440d8C-0UF-pD0v8w", // Haircut Stories by A I
+    "UUjUwgtakBBYR-BacjTWx4gQ", // Haircut Stories (Hindi/Indian)
+    "UUhE9k2S9cb9eDS_v7pkl5hg", // Indian haircut stories
+    "UU8sxj-zvIHShgqVkDLxLMwQ", // Heer Haircut & Stories
+    "UUKEdz3VD4dou5xEnR7Aq0rg", // Indian Haircut
+    "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa Haircuts
+    "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy Makeovers
+    "UUoc_XJPj6YLMQDWtPDQcDtA", // Brad Mondo
+    "UUjzof44RG883SW61XlkP-Pg", // Guy Tang
+  ],
+  Short: [
+    "UUcf2r5wHnPukckUdWQMRahw", // Culture Cafe Studio (Short bobs & undercut pixies)
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
+    "UUCJrJQz_r7MDHOfQcNPVZuw", // The Happy Radio
+    "UUCFFT7bZr09Tqo65vu5zPiQ", // Indian Girls Haircut (Bob & Pixie)
+    "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers
+    "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar
+    "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut
+    "UUDIqXqP9PL9fNH7CfbGeFsQ", // Haircut story (AI Stories)
+    "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy
+    "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
+  ],
+  Long: [
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
+    "UUCJrJQz_r7MDHOfQcNPVZuw", // The Happy Radio
+    "UUcf2r5wHnPukckUdWQMRahw", // Culture Cafe Studio
+    "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut
+    "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar (Long to Short)
+    "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers
+    "UUCFFT7bZr09Tqo65vu5zPiQ", // Indian Girls Haircut
+    "UUyyAQ8440d8C-0UF-pD0v8w", // Haircut Stories by A I
+    "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
+    "UUoc_XJPj6YLMQDWtPDQcDtA", // Brad Mondo
+  ],
+  Undercut: [
+    "UUcf2r5wHnPukckUdWQMRahw", // Culture Cafe Studio (Undercut pixies & bobs)
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
+    "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers (Nape Shaves & Undercuts)
+    "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar (Nape buzz & undercut bob)
+    "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut (Buzzed nape & Undercuts)
+    "UUDIqXqP9PL9fNH7CfbGeFsQ", // Haircut story
+    "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy
+    "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
+  ],
+  Colors: [
+    "UUjzof44RG883SW61XlkP-Pg", // Guy Tang Hair Colors
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
+    "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers (Color Makeovers)
+    "UUoc_XJPj6YLMQDWtPDQcDtA", // Brad Mondo
+    "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar
+    "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
+  ],
 };
 
-const PAGE_SIZE = 20;
+// Official YouTube Video Category IDs for Normal Mode (Cost: 1 unit)
+const NORMAL_CATEGORY_IDS: Record<string, string> = {
+  Music: "10",
+  Gaming: "20",
+  News: "25",
+  Tech: "28",
+  Podcasts: "24",
+};
+
+const PAGE_SIZE = 24;
 const TOKEN_KEY = "yt_token";
+const FEED_CACHE_TTL_MS = 30 * 60 * 1000;
+
+// Auto-clear feed cache on browser page reload (F5 / Cmd+R)
+try {
+  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  if (nav?.type === "reload") {
+    Object.keys(sessionStorage).forEach((k) => {
+      if (k.startsWith("feed_cache_") || k.startsWith("cache_")) {
+        sessionStorage.removeItem(k);
+      }
+    });
+  }
+} catch {}
+
+function clearAllFeedCache() {
+  try {
+    Object.keys(sessionStorage).forEach((k) => {
+      if (k.startsWith("feed_cache_") || k.startsWith("cache_")) {
+        sessionStorage.removeItem(k);
+      }
+    });
+  } catch {}
+}
+
+function getFeedCache(key: string): { items: VideoItem[]; nextToken: string | null } | null {
+  try {
+    const raw = sessionStorage.getItem(`feed_cache_${key}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.ts > FEED_CACHE_TTL_MS) {
+      sessionStorage.removeItem(`feed_cache_${key}`);
+      return null;
+    }
+    return { items: parsed.items, nextToken: parsed.nextToken };
+  } catch {
+    return null;
+  }
+}
+
+function setFeedCache(key: string, items: VideoItem[], nextToken: string | null) {
+  try {
+    sessionStorage.setItem(
+      `feed_cache_${key}`,
+      JSON.stringify({ items, nextToken, ts: Date.now() })
+    );
+  } catch {}
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+function extractYouTubeId(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) return null;
+  const match =
+    trimmed.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/
+    ) || trimmed.match(/^([\w-]{11})$/);
+  return match ? match[1] : null;
+}
+
 function parseISODuration(iso?: string): { label: string; sec: number } | undefined {
   if (!iso) return undefined;
   const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -117,6 +242,17 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOrder>("default");
   const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
+  const [activeChannel, setActiveChannel] = useState<{
+    channel: string;
+    channelId?: string;
+    source: "drive" | "youtube";
+  } | null>(null);
+
+  // Playlists State
+  const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
+  const [playlistTargetVideo, setPlaylistTargetVideo] = useState<VideoItem | null>(null);
+  const vaultFolderIdRef = useRef<string>("");
+
   const [page, setPage] = useState(1);
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -144,10 +280,24 @@ export default function App() {
   loadingMoreRef.current = loadingMore;
 
   const seenIdsRef = useRef<Set<string>>(new Set());
+  const refreshCountRef = useRef(0);
 
   // Custom hooks
   const { saveProgress, getProgress, getResumeTime } = useWatchHistory();
-  const { toggle: toggleFav, isFav } = useFavourites();
+  const {
+    playlists,
+    favorites,
+    isSyncing: isPlaylistSyncing,
+    setFolderId,
+    loadFromDrive: loadPlaylistsFromDrive,
+    toggleVideo: toggleVideoInPlaylist,
+    toggleFav,
+    isFav,
+    createPlaylist,
+    deletePlaylist,
+    getPlaylistVideos,
+    getFavoriteVideos,
+  } = useDrivePlaylists();
 
   // Accent color
   const accent = privateMode ? "#e91e8c" : theme === "light" ? "#dc2626" : "#ff0000";
@@ -182,6 +332,21 @@ export default function App() {
       const targetCat = opts.cat !== undefined ? opts.cat : categoryRef.current;
       const targetQuery = opts.query !== undefined ? opts.query : searchRefState.current;
 
+      const cacheKey = `${targetPrivate ? "priv" : "norm"}_${targetCat}_${targetQuery || "none"}_${isNext && nextPageTokenRef.current ? nextPageTokenRef.current : "init"}`;
+
+      // Check client-side cache first (Cost: 0 Units)
+      if (!isNext) {
+        const cached = getFeedCache(cacheKey);
+        if (cached && cached.items.length > 0) {
+          seenIdsRef.current = new Set(cached.items.map((v) => v.id));
+          setYtVideos(cached.items);
+          setNextPageToken(cached.nextToken);
+          nextPageTokenRef.current = cached.nextToken;
+          setLoading(false);
+          return;
+        }
+      }
+
       if (isNext) {
         if (!nextPageTokenRef.current || loadingMoreRef.current || loadingRef.current) return;
         loadingMoreRef.current = true;
@@ -199,61 +364,107 @@ export default function App() {
         const pageTokenParam = isNext && nextPageTokenRef.current ? `&pageToken=${nextPageTokenRef.current}` : "";
 
         if (targetQuery) {
-          // Explicit search
+          // Explicit search entered by user: uses search.list (100 units)
           const q = targetPrivate ? `${targetQuery} haircut makeover` : targetQuery;
-          url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=20&q=${encodeURIComponent(q)}${pageTokenParam}&key=${apiKey}`;
+          url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=24&q=${encodeURIComponent(q)}${pageTokenParam}&key=${apiKey}`;
         } else if (targetPrivate) {
-          // Private mode category query
+          // Broad YouTube search across ALL channels matching category queries
           const q = PRIVATE_CATEGORY_QUERIES[targetCat] || PRIVATE_CATEGORY_QUERIES.All;
-          url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=20&q=${encodeURIComponent(q)}${pageTokenParam}&key=${apiKey}`;
+          url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=24&q=${encodeURIComponent(q)}${pageTokenParam}&key=${apiKey}`;
         } else {
-          // Normal mode: trending suggestions or normal categories
-          if (targetCat === "All" || targetCat === "Trending") {
-            url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=20&regionCode=US${pageTokenParam}&key=${apiKey}`;
+          // 1-UNIT ENDPOINT: Official YouTube Most Popular & Category Charts (Cost: 1 unit)
+          const catId = NORMAL_CATEGORY_IDS[targetCat];
+          if (catId) {
+            url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&videoCategoryId=${catId}&maxResults=24&regionCode=US${pageTokenParam}&key=${apiKey}`;
           } else {
-            const q = NORMAL_CATEGORY_QUERIES[targetCat] || NORMAL_CATEGORY_QUERIES.All;
-            url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=20&q=${encodeURIComponent(q)}${pageTokenParam}&key=${apiKey}`;
+            url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=24&regionCode=US${pageTokenParam}&key=${apiKey}`;
           }
         }
 
         const res = await fetch(url);
         const data = await res.json();
 
-        if (data.error?.code === 403 || data.error?.errors?.[0]?.reason === "quotaExceeded") {
-          setYtQuotaExceeded(true);
-          return;
-        }
+        const isQuotaErr =
+          data.error?.code === 403 ||
+          data.error?.code === 429 ||
+          data.error?.status === "RESOURCE_EXHAUSTED" ||
+          data.error?.errors?.[0]?.reason === "quotaExceeded" ||
+          data.error?.errors?.[0]?.reason === "rateLimitExceeded";
 
         let items = data.items || [];
         let nextTok = data.nextPageToken || null;
 
-        // Fallback for trending if videos endpoint returns empty in specific region
-        if (!targetQuery && !targetPrivate && (targetCat === "All" || targetCat === "Trending") && items.length === 0 && !isNext) {
-          const fallbackUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=20&q=${encodeURIComponent("trending popular viral videos")}&key=${apiKey}`;
-          const fallbackRes = await fetch(fallbackUrl);
-          const fallbackData = await fallbackRes.json();
-          items = fallbackData.items || [];
-          nextTok = fallbackData.nextPageToken || null;
+        if (isQuotaErr) {
+          setYtQuotaExceeded(true);
+
+          // Graceful fallback to 1-unit creator playlists when search limit is reached
+          if (targetPrivate && !isNext) {
+            try {
+              const plList = PRIVATE_CATEGORY_PLAYLISTS[targetCat] || PRIVATE_CATEGORY_PLAYLISTS.All;
+              const plId = plList[refreshCountRef.current % plList.length];
+              const fallbackRes = await fetch(
+                `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${plId}&maxResults=24&key=${apiKey}`
+              );
+              const fallbackData = await fallbackRes.json();
+              if (fallbackData.items && fallbackData.items.length > 0) {
+                items = fallbackData.items;
+                nextTok = fallbackData.nextPageToken || null;
+              }
+            } catch (fbErr) {
+              console.warn("Private mode fallback error:", fbErr);
+            }
+          } else {
+            return;
+          }
         }
 
         nextPageTokenRef.current = nextTok;
         setNextPageToken(nextTok);
 
+        // Collect IDs needing duration details
+        const candidateIds: string[] = [];
+        for (const item of items) {
+          const vid =
+            item.snippet?.resourceId?.videoId ||
+            (typeof item.id === "string" ? item.id : item.id?.videoId);
+          if (vid && !item.contentDetails?.duration && !seenIdsRef.current.has(vid)) {
+            candidateIds.push(vid);
+          }
+        }
+
+        const durationMap = new Map<string, { label: string; sec: number }>();
+        if (candidateIds.length > 0) {
+          try {
+            const detailsRes = await fetch(
+              `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${candidateIds.join(",")}&key=${apiKey}`
+            );
+            const detailsData = await detailsRes.json();
+            for (const d of detailsData.items || []) {
+              const dur = parseISODuration(d.contentDetails?.duration);
+              if (dur) durationMap.set(d.id, dur);
+            }
+          } catch {}
+        }
+
         const newVideos: VideoItem[] = [];
         for (const item of items) {
-          const vid = typeof item.id === "string" ? item.id : item.id?.videoId;
+          const vid =
+            item.snippet?.resourceId?.videoId ||
+            (typeof item.id === "string" ? item.id : item.id?.videoId);
           if (!vid || seenIdsRef.current.has(vid)) continue;
           seenIdsRef.current.add(vid);
 
-          const dur = item.contentDetails?.duration
-            ? parseISODuration(item.contentDetails.duration)
-            : undefined;
+          const dur =
+            item.contentDetails?.duration
+              ? parseISODuration(item.contentDetails.duration)
+              : durationMap.get(vid);
 
           newVideos.push({
             id: vid,
             source: "youtube",
             title: item.snippet.title,
             channel: item.snippet.channelTitle,
+            channelId: item.snippet.channelId,
             category: targetCat === "All" ? inferCategory(item.snippet.title) : targetCat,
             thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || "",
             duration: dur?.label,
@@ -262,10 +473,15 @@ export default function App() {
         }
 
         if (isNext) {
-          setYtVideos((prev) => [...prev, ...newVideos]);
+          setYtVideos((prev) => {
+            const merged = [...prev, ...newVideos];
+            setFeedCache(cacheKey, merged, nextTok);
+            return merged;
+          });
           setPage((p) => p + 1);
         } else {
           setYtVideos(newVideos);
+          setFeedCache(cacheKey, newVideos, nextTok);
         }
       } catch (err) {
         console.error("Failed to fetch YouTube feed:", err);
@@ -282,82 +498,158 @@ export default function App() {
     []
   );
 
-  // ── Drive Vault Fetching ──────────────────────────────────────────────────
-  const fetchDriveVault = useCallback(async (accessToken: string) => {
-    const folderQuery = encodeURIComponent(
-      "name = 'videos' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-    );
-    const foldersRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&fields=files(id,name,owners(displayName))&includeItemsFromAllDrives=true&supportsAllDrives=true`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (foldersRes.status === 401) {
-      setToken("");
-      sessionStorage.removeItem(TOKEN_KEY);
-      setAuthError("Session expired. Please sign in again.");
-      return;
-    }
+  // ── Drive Vault Fetching (Files + links.txt parsing) ──────────────────────
+  const fetchDriveVault = useCallback(
+    async (accessToken: string) => {
+      const folderQuery = encodeURIComponent(
+        "name = 'videos' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+      );
+      const foldersRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&fields=files(id,name,owners(displayName))&includeItemsFromAllDrives=true&supportsAllDrives=true`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (foldersRes.status === 401) {
+        setToken("");
+        sessionStorage.removeItem(TOKEN_KEY);
+        setAuthError("Session expired. Please sign in again.");
+        return;
+      }
 
-    const foldersData = await foldersRes.json();
-    const folders = foldersData.files || [];
-    const allVideos: VideoItem[] = [];
-    const seen = new Set<string>();
+      const foldersData = await foldersRes.json();
+      const folders = foldersData.files || [];
+      const allVideos: VideoItem[] = [];
+      const seen = new Set<string>();
 
-    for (const folder of folders) {
-      const ownerName = folder.owners?.[0]?.displayName || "Drive Vault";
-      let pageToken = "";
+      // Load single playlists.json once for the primary vault folder
+      if (folders.length > 0) {
+        const primaryFolder = folders[0];
+        vaultFolderIdRef.current = primaryFolder.id;
+        setFolderId(primaryFolder.id);
+        loadPlaylistsFromDrive(accessToken, primaryFolder.id);
+      } else {
+        loadPlaylistsFromDrive(accessToken);
+      }
 
-      do {
-        const q = encodeURIComponent(
-          `'${folder.id}' in parents and mimeType contains 'video/' and trashed = false`
-        );
-        const url =
-          `https://www.googleapis.com/drive/v3/files?q=${q}` +
-          `&fields=nextPageToken,files(id,name,thumbnailLink,videoMediaMetadata)` +
-          `&orderBy=createdTime desc&pageSize=100` +
-          `&includeItemsFromAllDrives=true&supportsAllDrives=true` +
-          (pageToken ? `&pageToken=${pageToken}` : "");
+      for (const folder of folders) {
+        const ownerName = folder.owners?.[0]?.displayName || "Drive Vault";
 
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-        if (res.status === 401) {
-          setToken("");
-          sessionStorage.removeItem(TOKEN_KEY);
-          setAuthError("Session expired. Please sign in again.");
-          return;
+        // Scan & parse links.txt inside the videos folder
+        try {
+          const linksQuery = encodeURIComponent(
+            `name = 'links.txt' and '${folder.id}' in parents and trashed = false`
+          );
+          const linksRes = await fetch(
+            `https://www.googleapis.com/drive/v3/files?q=${linksQuery}&fields=files(id,name)`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const linksData = await linksRes.json();
+          for (const lFile of linksData.files || []) {
+            const fileRes = await fetch(
+              `https://www.googleapis.com/drive/v3/files/${lFile.id}?alt=media`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            const text = await fileRes.text();
+            const lines = text.split(/\r?\n/);
+            const ytIds: string[] = [];
+
+            for (const line of lines) {
+              const id = extractYouTubeId(line);
+              if (id && !seen.has(id)) {
+                seen.add(id);
+                ytIds.push(id);
+              }
+            }
+
+            // Batch fetch details from YouTube API (up to 50 per call)
+            const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+            if (apiKey && ytIds.length > 0) {
+              for (let i = 0; i < ytIds.length; i += 50) {
+                const chunk = ytIds.slice(i, i + 50);
+                const ytRes = await fetch(
+                  `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${chunk.join(",")}&key=${apiKey}`
+                );
+                const ytData = await ytRes.json();
+                for (const item of ytData.items || []) {
+                  const dur = item.contentDetails?.duration
+                    ? parseISODuration(item.contentDetails.duration)
+                    : undefined;
+                  allVideos.push({
+                    id: item.id,
+                    source: "drive", // Treated as Drive Vault video!
+                    title: item.snippet.title,
+                    channel: `${ownerName} (Link)`,
+                    channelId: item.snippet.channelId,
+                    category: inferCategory(item.snippet.title),
+                    thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || "",
+                    duration: dur?.label,
+                    durationSec: dur?.sec,
+                  });
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load links.txt from Drive:", err);
         }
-        const data = await res.json();
 
-        for (const file of data.files || []) {
-          if (seen.has(file.id)) continue;
-          seen.add(file.id);
-          const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]+/g, " ");
-          const dur = formatDuration(file.videoMediaMetadata?.durationMillis);
-          allVideos.push({
-            id: file.id,
-            source: "drive",
-            title: cleanTitle,
-            category: inferCategory(cleanTitle),
-            channel: ownerName,
-            thumbnail: file.thumbnailLink ? file.thumbnailLink.replace(/=s\d+$/, "=s640") : "",
-            duration: dur?.label,
-            durationSec: dur?.sec,
-          });
-        }
-        pageToken = data.nextPageToken || "";
-      } while (pageToken);
-    }
+        // 3. Scan for actual video files (MP4, MKV, etc.)
+        let pageToken = "";
+        do {
+          const q = encodeURIComponent(
+            `'${folder.id}' in parents and mimeType contains 'video/' and trashed = false`
+          );
+          const url =
+            `https://www.googleapis.com/drive/v3/files?q=${q}` +
+            `&fields=nextPageToken,files(id,name,thumbnailLink,videoMediaMetadata)` +
+            `&orderBy=createdTime desc&pageSize=100` +
+            `&includeItemsFromAllDrives=true&supportsAllDrives=true` +
+            (pageToken ? `&pageToken=${pageToken}` : "");
 
-    setDriveVideos(allVideos);
-  }, []);
+          const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+          if (res.status === 401) {
+            setToken("");
+            sessionStorage.removeItem(TOKEN_KEY);
+            setAuthError("Session expired. Please sign in again.");
+            return;
+          }
+          const data = await res.json();
 
-  const loadAllVideos = useCallback(async (accessToken: string, isPrivate: boolean) => {
-    setLoading(true);
-    await Promise.all([
-      fetchDriveVault(accessToken),
-      fetchYouTubeFeed({ isPrivate, cat: "All", isNextPage: false }),
-    ]);
-    setLoading(false);
-  }, [fetchDriveVault, fetchYouTubeFeed]);
+          for (const file of data.files || []) {
+            if (seen.has(file.id)) continue;
+            seen.add(file.id);
+            const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]+/g, " ");
+            const dur = formatDuration(file.videoMediaMetadata?.durationMillis);
+            allVideos.push({
+              id: file.id,
+              source: "drive",
+              title: cleanTitle,
+              category: inferCategory(cleanTitle),
+              channel: ownerName,
+              thumbnail: file.thumbnailLink ? file.thumbnailLink.replace(/=s\d+$/, "=s640") : "",
+              duration: dur?.label,
+              durationSec: dur?.sec,
+            });
+          }
+          pageToken = data.nextPageToken || "";
+        } while (pageToken);
+      }
+
+      setDriveVideos(allVideos);
+    },
+    [loadPlaylistsFromDrive]
+  );
+
+  const loadAllVideos = useCallback(
+    async (accessToken: string, isPrivate: boolean) => {
+      setLoading(true);
+      await Promise.all([
+        fetchDriveVault(accessToken),
+        fetchYouTubeFeed({ isPrivate, cat: "All", isNextPage: false }),
+      ]);
+      setLoading(false);
+    },
+    [fetchDriveVault, fetchYouTubeFeed]
+  );
 
   // ── Session restore on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -390,13 +682,11 @@ export default function App() {
     } else if (source === "youtube") {
       list = ytFiltered;
     } else if (source === "favourites") {
-      const all = [...driveVideos, ...ytVideos];
-      const seen = new Set<string>();
-      list = all.filter((v) => {
-        if (seen.has(v.id) || !isFav(v.id)) return false;
-        seen.add(v.id);
-        return true;
-      });
+      list = getFavoriteVideos([...driveVideos, ...ytVideos]);
+    } else if (source === "playlist") {
+      const playlistNames = Object.keys(playlists);
+      const activePName = selectedPlaylist || playlistNames[0] || "";
+      list = getPlaylistVideos(activePName, [...driveVideos, ...ytVideos]);
     } else {
       // Blended: interleave drive + youtube
       const blended: VideoItem[] = [];
@@ -411,7 +701,7 @@ export default function App() {
     if (sort === "az") return [...list].sort((a, b) => a.title.localeCompare(b.title));
     if (sort === "duration") return [...list].sort((a, b) => (b.durationSec ?? 0) - (a.durationSec ?? 0));
     return list;
-  }, [driveVideos, ytVideos, source, category, search, sort, isFav, privateMode]);
+  }, [driveVideos, ytVideos, source, category, search, sort, isFav, privateMode, playlists, selectedPlaylist]);
 
   const displayedVideos = useMemo(
     () => allFiltered.slice(0, page * PAGE_SIZE),
@@ -432,7 +722,8 @@ export default function App() {
             nextPageTokenRef.current &&
             !loadingMoreRef.current &&
             !loadingRef.current &&
-            source !== "drive"
+            source !== "drive" &&
+            source !== "playlist"
           ) {
             fetchYouTubeFeed({ isNextPage: true });
           }
@@ -472,7 +763,7 @@ export default function App() {
 
   // ── Auth Handlers ─────────────────────────────────────────────────────────
   const login = useGoogleLogin({
-    scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email",
+    scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email",
     onSuccess: async (tokenResponse) => {
       const accessToken = tokenResponse.access_token;
 
@@ -524,6 +815,7 @@ export default function App() {
     setPrivateMode(next);
     setCategory("All");
     setSearch("");
+    setActiveChannel(null);
     setPage(1);
     fetchYouTubeFeed({ isPrivate: next, cat: "All", query: "", isNextPage: false });
   };
@@ -531,6 +823,7 @@ export default function App() {
   const handleCategoryClick = (cat: string) => {
     const newCat = category === cat ? "All" : cat;
     setCategory(newCat);
+    setActiveChannel(null);
     setPage(1);
     fetchYouTubeFeed({ cat: newCat, isNextPage: false });
   };
@@ -538,6 +831,7 @@ export default function App() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = search.trim();
+    setActiveChannel(null);
     setPage(1);
     fetchYouTubeFeed({ query: q, isNextPage: false });
   };
@@ -546,6 +840,13 @@ export default function App() {
     if (!displayedVideos.length) return;
     setActiveVideo(displayedVideos[Math.floor(Math.random() * displayedVideos.length)]);
   }, [displayedVideos]);
+
+  const handleRefreshFeed = useCallback(() => {
+    refreshCountRef.current += 1;
+    clearAllFeedCache();
+    setPage(1);
+    fetchYouTubeFeed({ isNextPage: false });
+  }, [fetchYouTubeFeed]);
 
   // ── Sign-in Screen ────────────────────────────────────────────────────────
   if (!token) {
@@ -578,8 +879,12 @@ export default function App() {
     { id: "blended" as SourceFilter, icon: Sparkles, label: "All" },
     { id: "drive" as SourceFilter, icon: FolderLock, label: `Vault (${driveVideos.length})` },
     { id: "youtube" as SourceFilter, icon: TvMinimalPlay, label: "YouTube" },
-    { id: "favourites" as SourceFilter, icon: Heart, label: "Saved" },
+    { id: "playlist" as SourceFilter, icon: ListMusic, label: `Playlists (${Object.keys(playlists).length})` },
+    { id: "favourites" as SourceFilter, icon: Heart, label: `Saved (${favorites.size})` },
   ];
+
+  const playlistNames = Object.keys(playlists);
+  const activePlaylistName = selectedPlaylist || playlistNames[0] || "";
 
   return (
     <div
@@ -605,6 +910,7 @@ export default function App() {
             className="flex items-center gap-1.5 cursor-pointer shrink-0"
             onClick={() => {
               setActiveVideo(null);
+              setActiveChannel(null);
               setSource("blended");
               setCategory("All");
               setSearch("");
@@ -662,6 +968,16 @@ export default function App() {
               title={theme === "dark" ? "Light mode" : "Dark mode"}
             >
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            {/* Refresh Feed */}
+            <button
+              onClick={handleRefreshFeed}
+              className="p-2 rounded-full transition-colors cursor-pointer hover:opacity-80"
+              style={{ backgroundColor: "var(--c-card)", color: "var(--c-muted)" }}
+              title="Refresh feed"
+            >
+              <RotateCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </button>
 
             {/* Shuffle / Random */}
@@ -779,25 +1095,66 @@ export default function App() {
 
           <div className="h-4 w-px shrink-0" style={{ backgroundColor: "var(--c-border)" }} />
 
-          {/* Category chips with Infinite Scrolling on Click */}
-          {categories.map((cat) => {
-            const Icon = CATEGORY_ICONS[cat];
-            const active = category === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => handleCategoryClick(cat)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
-                style={
-                  active
-                    ? { backgroundColor: accent, color: "white" }
-                    : { backgroundColor: "var(--c-card)", color: "var(--c-muted)" }
-                }
-              >
-                {Icon && <Icon className="w-3.5 h-3.5" />} {cat}
-              </button>
-            );
-          })}
+          {/* If Playlists source is selected: show playlist pills */}
+          {source === "playlist" ? (
+            <>
+              {playlistNames.map((pName) => {
+                const isSelected = activePlaylistName === pName;
+                return (
+                  <button
+                    key={pName}
+                    onClick={() => setSelectedPlaylist(pName)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                    style={
+                      isSelected
+                        ? { backgroundColor: accent, color: "white" }
+                        : { backgroundColor: "var(--c-card)", color: "var(--c-muted)" }
+                    }
+                  >
+                    <span>{pName}</span>
+                    <span className="text-[10px] opacity-75">
+                      ({(playlists[pName] || []).length})
+                    </span>
+                  </button>
+                );
+              })}
+
+              {activePlaylistName && (
+                <button
+                  onClick={() => {
+                    if (confirm(`Delete playlist "${activePlaylistName}"?`)) {
+                      deletePlaylist(activePlaylistName, token, vaultFolderIdRef.current);
+                      setSelectedPlaylist(null);
+                    }
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 shrink-0 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition cursor-pointer"
+                  title="Delete active playlist"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </>
+          ) : (
+            /* Regular Category chips with Infinite Scrolling */
+            categories.map((cat) => {
+              const Icon = CATEGORY_ICONS[cat];
+              const active = category === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => handleCategoryClick(cat)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                  style={
+                    active
+                      ? { backgroundColor: accent, color: "white" }
+                      : { backgroundColor: "var(--c-card)", color: "var(--c-muted)" }
+                  }
+                >
+                  {Icon && <Icon className="w-3.5 h-3.5" />} {cat}
+                </button>
+              );
+            })
+          )}
 
           <div className="h-4 w-px shrink-0" style={{ backgroundColor: "var(--c-border)" }} />
 
@@ -825,6 +1182,16 @@ export default function App() {
           video={activeVideo}
           resumeTime={getResumeTime(activeVideo.id)}
           accentColor={accent}
+          isFav={isFav(activeVideo.id)}
+          onToggleFav={(v) => toggleFav(v, token, vaultFolderIdRef.current)}
+          onOpenPlaylistModal={(v) => setPlaylistTargetVideo(v)}
+          onOpenChannel={(v) =>
+            setActiveChannel({
+              channel: v.channel,
+              channelId: v.channelId,
+              source: v.source,
+            })
+          }
           onClose={() => setActiveVideo(null)}
           onProgress={saveProgress}
           onRandom={playRandom}
@@ -832,60 +1199,129 @@ export default function App() {
         />
       )}
 
-      {/* ── Main Video Feed ── */}
-      <main className="max-w-7xl mx-auto px-4 pt-4 relative z-10">
-        {/* YouTube Quota Warning */}
-        {ytQuotaExceeded && (
-          <div className="mb-4 px-4 py-3 rounded-xl text-sm bg-amber-500/10 border border-amber-500/20 text-amber-400">
-            ⚠️ YouTube API daily quota reached — Drive vault still works. Try again tomorrow.
-          </div>
-        )}
+      {/* ── Channel View OR Main Video Feed ── */}
+      {activeChannel ? (
+        <ChannelView
+          channel={activeChannel}
+          accentColor={accent}
+          driveVideos={driveVideos}
+          onBack={() => setActiveChannel(null)}
+          onPlay={setActiveVideo}
+          onToggleFav={(v) => toggleFav(v, token, vaultFolderIdRef.current)}
+          onOpenPlaylistModal={(v) => setPlaylistTargetVideo(v)}
+          isFav={isFav}
+          getProgress={getProgress}
+        />
+      ) : (
+        <main className="max-w-7xl mx-auto px-4 pt-4 relative z-10">
+          {/* YouTube Quota Warning */}
+          {ytQuotaExceeded && (
+            <div className="mb-4 px-4 py-3 rounded-xl text-sm bg-amber-500/10 border border-amber-500/20 text-amber-400">
+              ⚠️ YouTube API daily quota reached — Drive vault still works. Try again tomorrow.
+            </div>
+          )}
 
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        ) : (
-          <>
+          {/* Playlist Header if source is Playlist */}
+          {source === "playlist" && (
+            <div className="mb-4 flex items-center justify-between pb-2 border-b" style={{ borderColor: "var(--c-border)" }}>
+              <div>
+                <h2 className="text-base font-bold" style={{ color: "var(--c-text)" }}>
+                  {activePlaylistName ? `📁 ${activePlaylistName}` : "Playlists"}
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: "var(--c-muted)" }}>
+                  {displayedVideos.length} videos in this playlist · Synced to Google Drive
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  const name = prompt("Enter new playlist name:");
+                  if (name) createPlaylist(name, null, token, vaultFolderIdRef.current);
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                style={{ backgroundColor: `${accent}18`, color: accent }}
+              >
+                <Plus className="w-3.5 h-3.5" /> New Playlist
+              </button>
+            </div>
+          )}
+
+          {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
-              {displayedVideos.map((video) => (
-                <VideoCard
-                  key={`${video.source}-${video.id}`}
-                  video={video}
-                  progress={getProgress(video.id)}
-                  isFav={isFav(video.id)}
-                  onPlay={setActiveVideo}
-                  onToggleFav={toggleFav}
-                  accentColor={accent}
-                />
+              {Array.from({ length: 12 }).map((_, i) => (
+                <SkeletonCard key={i} />
               ))}
             </div>
-
-            {/* Infinite Scroll Sentinel & Loading Indicator */}
-            {(displayedVideos.length < allFiltered.length || (nextPageToken && source !== "drive")) && (
-              <div ref={sentinelRef} className="h-20 flex items-center justify-center">
-                {(loadingMore || displayedVideos.length < allFiltered.length) && (
-                  <div
-                    className="w-6 h-6 rounded-full border-2 animate-spin"
-                    style={{ borderColor: `${accent}40`, borderTopColor: accent }}
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
+                {displayedVideos.map((video) => (
+                  <VideoCard
+                    key={`${video.source}-${video.id}`}
+                    video={video}
+                    progress={getProgress(video.id)}
+                    isFav={isFav(video.id)}
+                    onPlay={setActiveVideo}
+                    onToggleFav={(v) => toggleFav(v, token, vaultFolderIdRef.current)}
+                    onOpenPlaylistModal={(v) => setPlaylistTargetVideo(v)}
+                    onOpenChannel={(v) =>
+                      setActiveChannel({
+                        channel: v.channel,
+                        channelId: v.channelId,
+                        source: v.source,
+                      })
+                    }
+                    accentColor={accent}
                   />
-                )}
+                ))}
               </div>
-            )}
 
-            {/* Empty state */}
-            {displayedVideos.length === 0 && !loading && (
-              <div className="py-20 text-center text-sm" style={{ color: "var(--c-muted)" }}>
-                {source === "favourites"
-                  ? "No saved videos yet — tap the ♥ on any video to save it."
-                  : "No videos found. Try a different filter or search."}
-              </div>
-            )}
-          </>
-        )}
-      </main>
+              {/* Infinite Scroll Sentinel & Loading Indicator */}
+              {(displayedVideos.length < allFiltered.length ||
+                (nextPageToken && source !== "drive" && source !== "playlist")) && (
+                <div ref={sentinelRef} className="h-20 flex items-center justify-center">
+                  {(loadingMore || displayedVideos.length < allFiltered.length) && (
+                    <div
+                      className="w-6 h-6 rounded-full border-2 animate-spin"
+                      style={{ borderColor: `${accent}40`, borderTopColor: accent }}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {displayedVideos.length === 0 && !loading && (
+                <div className="py-20 text-center text-sm" style={{ color: "var(--c-muted)" }}>
+                  {source === "favourites"
+                    ? "No saved videos yet — tap the ♥ on any video to save it."
+                    : source === "playlist"
+                    ? "This playlist has no videos yet. Tap the playlist icon on any video to add it!"
+                    : "No videos found. Try a different filter or search."}
+                </div>
+              )}
+            </>
+          )}
+        </main>
+      )}
+
+      {/* ── Playlist Manager Modal ── */}
+      {playlistTargetVideo && (
+        <PlaylistModal
+          video={playlistTargetVideo}
+          playlists={playlists}
+          accentColor={accent}
+          isSyncing={isPlaylistSyncing}
+          onClose={() => setPlaylistTargetVideo(null)}
+          onToggleInPlaylist={(name) => {
+            if (playlistTargetVideo) {
+              toggleVideoInPlaylist(name, playlistTargetVideo, token, vaultFolderIdRef.current);
+            }
+          }}
+          onCreatePlaylist={(name, vid) =>
+            createPlaylist(name, vid, token, vaultFolderIdRef.current)
+          }
+        />
+      )}
 
       {/* ── Mobile Bottom Navigation ── */}
       <BottomNav

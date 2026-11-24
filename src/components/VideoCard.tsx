@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Heart } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Heart, ListPlus } from "lucide-react";
 import type { VideoItem } from "../types";
 
 interface Props {
@@ -7,11 +7,22 @@ interface Props {
   progress: number; // 0–1
   isFav: boolean;
   onPlay: (v: VideoItem) => void;
-  onToggleFav: (id: string) => void;
+  onToggleFav: (video: VideoItem) => void;
+  onOpenPlaylistModal?: (v: VideoItem) => void;
+  onOpenChannel?: (v: VideoItem) => void;
   accentColor: string;
 }
 
-export function VideoCard({ video, progress, isFav, onPlay, onToggleFav, accentColor }: Props) {
+export const VideoCard = React.memo(function VideoCard({
+  video,
+  progress,
+  isFav,
+  onPlay,
+  onToggleFav,
+  onOpenPlaylistModal,
+  onOpenChannel,
+  accentColor,
+}: Props) {
   const [hovered, setHovered] = useState(false);
   const previewRef = useRef<HTMLVideoElement>(null);
   const isDrive = video.source === "drive";
@@ -39,7 +50,6 @@ export function VideoCard({ video, progress, isFav, onPlay, onToggleFav, accentC
     >
       {/* Thumbnail container */}
       <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-zinc-900 video-card-thumb">
-
         {/* Static thumbnail */}
         {video.thumbnail ? (
           <img
@@ -85,30 +95,57 @@ export function VideoCard({ video, progress, isFav, onPlay, onToggleFav, accentC
           </span>
         )}
 
-        {/* Favourite button */}
-        <button
-          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-          onClick={(e) => { e.stopPropagation(); onToggleFav(video.id); }}
-          title={isFav ? "Remove from saved" : "Save"}
-        >
-          <Heart
-            className="w-3.5 h-3.5 transition-colors"
-            style={{ color: isFav ? accentColor : "white", fill: isFav ? accentColor : "transparent" }}
-          />
-        </button>
+        {/* Quick action buttons on thumbnail */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          {onOpenPlaylistModal && (
+            <button
+              className="p-1.5 rounded-full bg-black/60 hover:bg-black/90 text-white transition cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenPlaylistModal(video);
+              }}
+              title="Add to playlist"
+            >
+              <ListPlus className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Favourite button */}
+          <button
+            className="p-1.5 rounded-full bg-black/60 hover:bg-black/90 transition cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFav(video);
+            }}
+            title={isFav ? "Remove from saved" : "Save"}
+          >
+            <Heart
+              className="w-3.5 h-3.5 transition-colors"
+              style={{ color: isFav ? accentColor : "white", fill: isFav ? accentColor : "transparent" }}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Meta row */}
       <div className="mt-2.5 flex gap-3">
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+        {/* Clickable Channel Avatar */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenChannel?.(video);
+          }}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition hover:scale-105 hover:ring-2 hover:ring-offset-1 cursor-pointer"
           style={{
             backgroundColor: isDrive ? "var(--c-card)" : `${accentColor}22`,
             color: isDrive ? "var(--c-text)" : accentColor,
           }}
+          title={`View ${video.channel} channel`}
         >
           {video.channel.slice(0, 2).toUpperCase()}
-        </div>
+        </button>
+
         <div className="min-w-0 flex-1">
           <h3
             className="text-sm font-medium line-clamp-2 leading-snug"
@@ -117,10 +154,20 @@ export function VideoCard({ video, progress, isFav, onPlay, onToggleFav, accentC
             {video.title}
           </h3>
           <p className="text-xs mt-0.5 truncate" style={{ color: "var(--c-muted)" }}>
-            {video.channel} · {video.category}
+            <span
+              className="hover:underline cursor-pointer font-medium"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenChannel?.(video);
+              }}
+              title={`View ${video.channel} channel`}
+            >
+              {video.channel}
+            </span>{" "}
+            · {video.category}
           </p>
         </div>
       </div>
     </div>
   );
-}
+});
