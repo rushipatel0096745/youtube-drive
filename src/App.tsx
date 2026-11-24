@@ -47,14 +47,19 @@ const PRIVATE_CATEGORY_QUERIES: Record<string, string> = {
   Colors: "hair color transformation balayage blonde salon dye makeover",
 };
 
+// Confirmed Culture Cafe Studio Haircut Transformations
+const CULTURE_CAFE_HAIRCUT_VIDS = [
+  "jol6Vp8wlz8", // ✨UNDERCUT PIXIE ✨ - Full Video | Short Haircut For Women | Virtue Studio | Culture Cafe Studio
+  "RaObgu0xoZA", // ✨ Short to Shorter Haircut ✨ | PIXIE CUT and Styling | Culture Cafe Studio
+  "Ta4_RFmVQro", // Showing off after a new haircut and styling | Culture Cafe Studio
+];
+
 // 1-Unit Upload Playlists for Private Mode (Curated Indian creators, AI stories & top salons)
 const PRIVATE_CATEGORY_PLAYLISTS: Record<string, string[]> = {
   All: [
     "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers (Indian Salon Makeovers)
     "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar (Indian Haircut Transformations)
-    "UUcf2r5wHnPukckUdWQMRahw", // Culture Cafe Studio (Undercut Pixie & Bob Makeovers)
-    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
-    "UUCJrJQz_r7MDHOfQcNPVZuw", // The Happy Radio (formerly Nom Nom Hedonist)
+    "PLW77CFOjU1MEpngokZElo00dXvtZ-1Ml5", // The Happy Radio (Nom Nom Hedonist - Official Makeover & Pixie Series)
     "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut (Indian Girls Headshave & Bob)
     "UUCFFT7bZr09Tqo65vu5zPiQ", // Indian Girls Haircut
     "UUDIqXqP9PL9fNH7CfbGeFsQ", // Haircut story (AI Indian Stories)
@@ -62,6 +67,7 @@ const PRIVATE_CATEGORY_PLAYLISTS: Record<string, string[]> = {
     "UUjUwgtakBBYR-BacjTWx4gQ", // Haircut Stories (Hindi/Indian)
     "UUhE9k2S9cb9eDS_v7pkl5hg", // Indian haircut stories
     "UU8sxj-zvIHShgqVkDLxLMwQ", // Heer Haircut & Stories
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
     "UUKEdz3VD4dou5xEnR7Aq0rg", // Indian Haircut
     "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa Haircuts
     "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy Makeovers
@@ -69,41 +75,40 @@ const PRIVATE_CATEGORY_PLAYLISTS: Record<string, string[]> = {
     "UUjzof44RG883SW61XlkP-Pg", // Guy Tang
   ],
   Short: [
-    "UUcf2r5wHnPukckUdWQMRahw", // Culture Cafe Studio (Short bobs & undercut pixies)
-    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
-    "UUCJrJQz_r7MDHOfQcNPVZuw", // The Happy Radio
+    "PLW77CFOjU1MEpngokZElo00dXvtZ-1Ml5", // The Happy Radio (Pixie & Short Series)
     "UUCFFT7bZr09Tqo65vu5zPiQ", // Indian Girls Haircut (Bob & Pixie)
     "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers
     "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar
     "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut
     "UUDIqXqP9PL9fNH7CfbGeFsQ", // Haircut story (AI Stories)
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
     "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy
     "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
   ],
   Long: [
-    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
-    "UUCJrJQz_r7MDHOfQcNPVZuw", // The Happy Radio
-    "UUcf2r5wHnPukckUdWQMRahw", // Culture Cafe Studio
+    "PLW77CFOjU1MEpngokZElo00dXvtZ-1Ml5", // The Happy Radio (Extreme Long to Extreme Short)
     "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut
     "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar (Long to Short)
     "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers
     "UUCFFT7bZr09Tqo65vu5zPiQ", // Indian Girls Haircut
     "UUyyAQ8440d8C-0UF-pD0v8w", // Haircut Stories by A I
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
     "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
     "UUoc_XJPj6YLMQDWtPDQcDtA", // Brad Mondo
   ],
   Undercut: [
-    "UUcf2r5wHnPukckUdWQMRahw", // Culture Cafe Studio (Undercut pixies & bobs)
-    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
     "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers (Nape Shaves & Undercuts)
     "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar (Nape buzz & undercut bob)
     "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut (Buzzed nape & Undercuts)
+    "PLW77CFOjU1MEpngokZElo00dXvtZ-1Ml5", // The Happy Radio (Hair Tattoo & Undercut)
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
     "UUDIqXqP9PL9fNH7CfbGeFsQ", // Haircut story
     "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy
     "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
   ],
   Colors: [
     "UUjzof44RG883SW61XlkP-Pg", // Guy Tang Hair Colors
+    "PLW77CFOjU1MEpngokZElo00dXvtZ-1Ml5", // The Happy Radio (Pink Highlights & Global Colors)
     "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
     "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers (Color Makeovers)
     "UUoc_XJPj6YLMQDWtPDQcDtA", // Brad Mondo
@@ -397,21 +402,50 @@ export default function App() {
         if (isQuotaErr) {
           setYtQuotaExceeded(true);
 
-          // Graceful fallback to 1-unit creator playlists when search limit is reached
+          // Graceful fallback: Show a rich mix across ALL predefined creators
           if (targetPrivate && !isNext) {
             try {
               const plList = PRIVATE_CATEGORY_PLAYLISTS[targetCat] || PRIVATE_CATEGORY_PLAYLISTS.All;
-              const plId = plList[refreshCountRef.current % plList.length];
-              const fallbackRes = await fetch(
-                `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${plId}&maxResults=24&key=${apiKey}`
+              // Sample top 8 diverse creators from the category
+              const selectedPlaylists = plList.slice(0, 8);
+              const playlistPromises = selectedPlaylists.map((plId) =>
+                fetch(
+                  `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${plId}&maxResults=4&key=${apiKey}`
+                )
+                  .then((r) => r.json())
+                  .then((d) => d.items || [])
+                  .catch(() => [])
               );
-              const fallbackData = await fallbackRes.json();
-              if (fallbackData.items && fallbackData.items.length > 0) {
-                items = fallbackData.items;
-                nextTok = fallbackData.nextPageToken || null;
+
+              // Fetch Culture Cafe Studio specific haircut transformations
+              const cultureCafePromise = fetch(
+                `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${CULTURE_CAFE_HAIRCUT_VIDS.join(",")}&key=${apiKey}`
+              )
+                .then((r) => r.json())
+                .then((d) => d.items || [])
+                .catch(() => []);
+
+              const [allPlLists, ccItems] = await Promise.all([
+                Promise.all(playlistPromises),
+                cultureCafePromise,
+              ]);
+
+              // Interleave all creators together in round-robin for a balanced mix
+              const mixedItems: any[] = [];
+              const maxItems = Math.max(...allPlLists.map((l) => l.length), 0);
+              for (let i = 0; i < maxItems; i++) {
+                if (ccItems[i]) mixedItems.push(ccItems[i]);
+                for (const list of allPlLists) {
+                  if (list[i]) mixedItems.push(list[i]);
+                }
+              }
+
+              if (mixedItems.length > 0) {
+                items = mixedItems;
+                nextTok = null;
               }
             } catch (fbErr) {
-              console.warn("Private mode fallback error:", fbErr);
+              console.warn("Private mode multi-creator fallback error:", fbErr);
             }
           } else {
             return;
