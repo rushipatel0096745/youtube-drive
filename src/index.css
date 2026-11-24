@@ -1,1 +1,41 @@
 @import "tailwindcss";
+
+/* ── Theme tokens ───────────────────────────────────────── */
+:root {
+  --c-bg:      #0f0f0f;
+  --c-surface: #181818;
+  --c-card:    #272727;
+  --c-border:  rgba(63, 63, 70, 0.8);
+  --c-text:    #ffffff;
+  --c-muted:   #a1a1aa;
+}
+
+[data-theme="light"] {
+  --c-bg:      #f9f9f9;
+  --c-surface: #ffffff;
+  --c-card:    #f0f0f0;
+  --c-border:  rgb(228, 228, 231);
+  --c-text:    #09090b;
+  --c-muted:   #71717a;
+}
+
+/* Private mode — deep salon/fetish vibe */
+[data-private="true"] {
+  --c-bg:      #0d0507;
+  --c-surface: #1a0810;
+  --c-card:    #26101a;
+  --c-border:  rgba(190, 24, 93, 0.3);
+  --c-text:    #fff0f5;
+  --c-muted:   #c084a0;
+}
+
+/* Private mode ambient card glow */
+[data-private="true"] .video-card-thumb {
+  box-shadow: 0 0 0 1px rgba(233, 30, 140, 0.12);
+}
+
+/* ── Utilities ──────────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 12px); }

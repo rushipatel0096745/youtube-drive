@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
 import "./index.css";
 
@@ -10,8 +11,10 @@ if ("serviceWorker" in navigator) {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-      <App />
-    </GoogleOAuthProvider>
+    <ErrorBoundary>
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+        <App />
+      </GoogleOAuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
