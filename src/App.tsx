@@ -285,7 +285,18 @@ export default function App() {
   loadingMoreRef.current = loadingMore;
 
   const seenIdsRef = useRef<Set<string>>(new Set());
-  const refreshCountRef = useRef(0);
+  const refreshCountRef = useRef<number>(
+    (() => {
+      try {
+        const c = parseInt(sessionStorage.getItem("yt_refresh_count") || "0", 10);
+        const next = isNaN(c) ? 0 : c + 1;
+        sessionStorage.setItem("yt_refresh_count", String(next));
+        return next;
+      } catch {
+        return 0;
+      }
+    })()
+  );
 
   // Custom hooks
   const { saveProgress, getProgress, getResumeTime } = useWatchHistory();
@@ -402,24 +413,40 @@ export default function App() {
         if (isQuotaErr) {
           setYtQuotaExceeded(true);
 
-          // Graceful fallback: Show a rich mix across ALL predefined creators
-          if (targetPrivate && !isNext) {
+          // Graceful fallback: Show a rich dynamic mix across ALL predefined creators
+          if (targetPrivate) {
             try {
               const plList = PRIVATE_CATEGORY_PLAYLISTS[targetCat] || PRIVATE_CATEGORY_PLAYLISTS.All;
-              // Sample top 8 diverse creators from the category
-              const selectedPlaylists = plList.slice(0, 8);
+              const isPage2 = isNext && (nextPageTokenRef.current === "fb_page_2" || nextPageTokenRef.current?.startsWith("fb_"));
+              const pageMultiplier = isPage2 ? 1 : 0;
+
+              // Rotate creators based on refresh count and page
+              const rotateOffset = (((refreshCountRef.current || 0) * 3) + (pageMultiplier * 8)) % plList.length;
+              const rotated = [
+                ...plList.slice(rotateOffset),
+                ...plList.slice(0, rotateOffset),
+              ];
+              const selectedPlaylists = rotated.slice(0, 8);
+
+              // Fetch up to 10 videos per creator
               const playlistPromises = selectedPlaylists.map((plId) =>
                 fetch(
-                  `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${plId}&maxResults=4&key=${apiKey}`
+                  `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${plId}&maxResults=10&key=${apiKey}`
                 )
                   .then((r) => r.json())
                   .then((d) => d.items || [])
                   .catch(() => [])
               );
 
-              // Fetch Culture Cafe Studio specific haircut transformations
+              // Rotate Culture Cafe Studio specific haircut transformations
+              const ccOffset = ((refreshCountRef.current || 0) + pageMultiplier) % CULTURE_CAFE_HAIRCUT_VIDS.length;
+              const rotatedCC = [
+                ...CULTURE_CAFE_HAIRCUT_VIDS.slice(ccOffset),
+                ...CULTURE_CAFE_HAIRCUT_VIDS.slice(0, ccOffset),
+              ];
+
               const cultureCafePromise = fetch(
-                `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${CULTURE_CAFE_HAIRCUT_VIDS.join(",")}&key=${apiKey}`
+                `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${rotatedCC.join(",")}&key=${apiKey}`
               )
                 .then((r) => r.json())
                 .then((d) => d.items || [])
@@ -430,19 +457,23 @@ export default function App() {
                 cultureCafePromise,
               ]);
 
-              // Interleave all creators together in round-robin for a balanced mix
+              // Interleave all creators together with offset per refresh
               const mixedItems: any[] = [];
-              const maxItems = Math.max(...allPlLists.map((l) => l.length), 0);
-              for (let i = 0; i < maxItems; i++) {
+              const itemOffset = (((refreshCountRef.current || 0) * 2) + (pageMultiplier * 4)) % 6;
+
+              for (let i = 0; i < 4; i++) {
                 if (ccItems[i]) mixedItems.push(ccItems[i]);
                 for (const list of allPlLists) {
-                  if (list[i]) mixedItems.push(list[i]);
+                  if (list.length > 0) {
+                    const item = list[(i + itemOffset) % list.length];
+                    if (item) mixedItems.push(item);
+                  }
                 }
               }
 
               if (mixedItems.length > 0) {
                 items = mixedItems;
-                nextTok = null;
+                nextTok = isPage2 ? null : "fb_page_2";
               }
             } catch (fbErr) {
               console.warn("Private mode multi-creator fallback error:", fbErr);
@@ -876,8 +907,12 @@ export default function App() {
   }, [displayedVideos]);
 
   const handleRefreshFeed = useCallback(() => {
-    refreshCountRef.current += 1;
+    refreshCountRef.current = (refreshCountRef.current || 0) + 1;
+    try {
+      sessionStorage.setItem("yt_refresh_count", String(refreshCountRef.current));
+    } catch {}
     clearAllFeedCache();
+    seenIdsRef.current.clear();
     setPage(1);
     fetchYouTubeFeed({ isNextPage: false });
   }, [fetchYouTubeFeed]);
