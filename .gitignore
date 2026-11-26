@@ -24,3 +24,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Standalone Native Kotlin Android App (separate git repository)
+android-app/
