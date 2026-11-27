@@ -81,7 +81,8 @@ export function PlaylistModal({
             </p>
           ) : (
             playlistNames.map((name) => {
-              const isChecked = (playlists[name] || []).includes(video.id);
+              const list = Array.isArray(playlists[name]) ? playlists[name] : [];
+              const isChecked = list.includes(video.id);
               return (
                 <button
                   key={name}

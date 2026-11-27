@@ -3,8 +3,12 @@ import { useCallback, useState } from "react";
 const KEY = "yt_favourites";
 
 function load(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(KEY) ?? "[]")); }
-  catch { return new Set(); }
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    return new Set(Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
 }
 
 export function useFavourites() {

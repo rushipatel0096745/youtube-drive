@@ -15,7 +15,21 @@ interface DriveStorageSchema {
 
 function loadLocalPlaylists(): PlaylistsMap {
   try {
-    return JSON.parse(localStorage.getItem(LOCAL_PLAYLISTS_KEY) ?? "{}");
+    const raw = JSON.parse(localStorage.getItem(LOCAL_PLAYLISTS_KEY) ?? "{}");
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const clean: PlaylistsMap = {};
+    let hasDirty = false;
+    for (const [name, ids] of Object.entries(raw)) {
+      if (name !== "error" && Array.isArray(ids)) {
+        clean[name] = ids.filter((id): id is string => typeof id === "string");
+      } else {
+        hasDirty = true;
+      }
+    }
+    if (hasDirty) {
+      localStorage.setItem(LOCAL_PLAYLISTS_KEY, JSON.stringify(clean));
+    }
+    return clean;
   } catch {
     return {};
   }
@@ -24,7 +38,7 @@ function loadLocalPlaylists(): PlaylistsMap {
 function loadLocalFavorites(): Set<string> {
   try {
     const raw = JSON.parse(localStorage.getItem(LOCAL_FAVS_KEY) ?? "[]");
-    return new Set(Array.isArray(raw) ? raw : []);
+    return new Set(Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : []);
   } catch {
     return new Set();
   }
@@ -32,7 +46,9 @@ function loadLocalFavorites(): Set<string> {
 
 function loadLocalVideoDetails(): Record<string, VideoItem> {
   try {
-    return JSON.parse(localStorage.getItem(LOCAL_DETAILS_KEY) ?? "{}");
+    const raw = JSON.parse(localStorage.getItem(LOCAL_DETAILS_KEY) ?? "{}");
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    return raw;
   } catch {
     return {};
   }
@@ -69,6 +85,13 @@ export function useDrivePlaylists() {
     localStorage.setItem(FOLDER_ID_KEY, id);
   }, []);
 
+  const clearDriveCache = useCallback(() => {
+    fileIdRef.current = null;
+    folderIdRef.current = "";
+    localStorage.removeItem(FILE_ID_KEY);
+    localStorage.removeItem(FOLDER_ID_KEY);
+  }, []);
+
   // Guarantee single file ID resolution across all drives / folders
   const resolveFileId = useCallback(
     async (token: string): Promise<string | null> => {
@@ -82,6 +105,10 @@ export function useDrivePlaylists() {
             `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,parents)&includeItemsFromAllDrives=true&supportsAllDrives=true`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
+          if (!searchRes.ok) {
+            console.warn("Failed to search playlists.json file: HTTP", searchRes.status);
+            return null;
+          }
           const searchData = await searchRes.json();
           const files = searchData.files || [];
 
@@ -138,7 +165,7 @@ export function useDrivePlaylists() {
       let currentFileId = await resolveFileId(token);
 
       if (currentFileId) {
-        await fetch(
+        const updateRes = await fetch(
           `https://www.googleapis.com/upload/drive/v3/files/${currentFileId}?uploadType=media`,
           {
             method: "PATCH",
@@ -149,6 +176,13 @@ export function useDrivePlaylists() {
             body: content,
           }
         );
+        if (!updateRes.ok) {
+          console.warn("Failed to update playlists.json on Drive: HTTP", updateRes.status);
+          if (updateRes.status === 404 || updateRes.status === 403) {
+            fileIdRef.current = null;
+            localStorage.removeItem(FILE_ID_KEY);
+          }
+        }
       } else {
         const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
           method: "POST",
@@ -162,6 +196,14 @@ export function useDrivePlaylists() {
             mimeType: "application/json",
           }),
         });
+        if (!createRes.ok) {
+          console.warn("Failed to create playlists.json on Drive: HTTP", createRes.status);
+          if (folderIdRef.current && (createRes.status === 404 || createRes.status === 403)) {
+            folderIdRef.current = "";
+            localStorage.removeItem(FOLDER_ID_KEY);
+          }
+          return;
+        }
         const createData = await createRes.json();
         if (createData.id) {
           currentFileId = createData.id;
@@ -225,21 +267,49 @@ export function useDrivePlaylists() {
             `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
+          if (!contentRes.ok) {
+            console.warn("Failed to fetch playlists from Drive: HTTP", contentRes.status);
+            if (contentRes.status === 404 || contentRes.status === 403) {
+              fileIdRef.current = null;
+              localStorage.removeItem(FILE_ID_KEY);
+            }
+            return;
+          }
           const driveData = await contentRes.json();
 
-          if (driveData && typeof driveData === "object") {
-            const drivePlaylists: PlaylistsMap = driveData.playlists || (driveData.favorites ? {} : driveData);
-            const driveFavs: string[] = driveData.favorites || [];
-            const driveDetails: Record<string, VideoItem> = driveData.videoDetails || {};
+          if (driveData && typeof driveData === "object" && !("error" in driveData)) {
+            const rawPlaylists =
+              driveData.playlists && typeof driveData.playlists === "object" && !Array.isArray(driveData.playlists)
+                ? driveData.playlists
+                : !driveData.favorites && !driveData.error && typeof driveData === "object" && !Array.isArray(driveData)
+                ? driveData
+                : {};
+
+            const cleanDrivePlaylists: PlaylistsMap = {};
+            for (const [name, ids] of Object.entries(rawPlaylists)) {
+              if (name !== "error" && Array.isArray(ids)) {
+                cleanDrivePlaylists[name] = ids.filter((id): id is string => typeof id === "string");
+              }
+            }
+
+            const driveFavs: string[] = Array.isArray(driveData.favorites)
+              ? driveData.favorites.filter((id: unknown): id is string => typeof id === "string")
+              : [];
+            const driveDetails: Record<string, VideoItem> =
+              driveData.videoDetails && typeof driveData.videoDetails === "object" && !Array.isArray(driveData.videoDetails)
+                ? driveData.videoDetails
+                : {};
 
             // Merging preserves locally created playlists so they are never wiped
             setPlaylists((prevLocal) => {
-              const merged: PlaylistsMap = { ...drivePlaylists };
+              const merged: PlaylistsMap = { ...cleanDrivePlaylists };
               for (const [name, ids] of Object.entries(prevLocal)) {
-                if (merged[name]) {
-                  merged[name] = Array.from(new Set([...merged[name], ...ids]));
+                if (name === "error") continue;
+                const localList = Array.isArray(ids) ? ids : [];
+                if (Array.isArray(merged[name])) {
+                  merged[name] = Array.from(new Set([...merged[name], ...localList]));
                 } else {
-                  merged[name] = ids;
+                  merged[name] = localList;
                 }
               }
               localStorage.setItem(LOCAL_PLAYLISTS_KEY, JSON.stringify(merged));
@@ -248,7 +318,8 @@ export function useDrivePlaylists() {
             });
 
             setFavorites((prevFavs) => {
-              const merged = new Set([...prevFavs, ...driveFavs]);
+              const prevArr = prevFavs instanceof Set ? Array.from(prevFavs) : Array.isArray(prevFavs) ? prevFavs : [];
+              const merged = new Set([...prevArr, ...driveFavs]);
               localStorage.setItem(LOCAL_FAVS_KEY, JSON.stringify(Array.from(merged)));
               favoritesRef.current = merged;
               return merged;
@@ -389,8 +460,8 @@ export function useDrivePlaylists() {
   // Resolver for Playlist Videos
   const getPlaylistVideos = useCallback(
     (playlistName: string, knownPool: VideoItem[]): VideoItem[] => {
-      const ids = playlists[playlistName] || [];
-      if (ids.length === 0) return [];
+      const ids = playlists[playlistName];
+      if (!Array.isArray(ids) || ids.length === 0) return [];
 
       const poolMap = new Map<string, VideoItem>();
       for (const v of knownPool) {
@@ -417,7 +488,7 @@ export function useDrivePlaylists() {
   // Resolver for Favorites
   const getFavoriteVideos = useCallback(
     (knownPool: VideoItem[]): VideoItem[] => {
-      if (favorites.size === 0) return [];
+      if (!favorites || !(favorites instanceof Set) || favorites.size === 0) return [];
 
       const poolMap = new Map<string, VideoItem>();
       for (const v of knownPool) {
@@ -447,6 +518,7 @@ export function useDrivePlaylists() {
     isSyncing,
     setFolderId,
     loadFromDrive,
+    clearDriveCache,
     toggleVideo,
     toggleFav,
     isFav,

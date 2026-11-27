@@ -19,7 +19,16 @@ import { useDrivePlaylists } from "./hooks/useDrivePlaylists";
 import type { VideoItem, SourceFilter, SortOrder, AppTheme } from "./types";
 
 // ── Categories & Queries ─────────────────────────────────────────────────────
-const PRIVATE_CATEGORIES = ["All", "Short", "Long", "Undercut", "Colors"] as const;
+const PRIVATE_CATEGORIES = [
+  "All",
+  "Short",
+  "Undercut",
+  "Sideshave & Fade",
+  "Bixie & Pixie",
+  "Mom Makeover",
+  "Colors",
+  "Long",
+] as const;
 const NORMAL_CATEGORIES = ["All", "Trending", "Music", "Gaming", "Tech", "News", "Podcasts"] as const;
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -28,6 +37,9 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   Short: Scissors,
   Long: Ruler,
   Undercut: Zap,
+  "Sideshave & Fade": Flame,
+  "Bixie & Pixie": Scissors,
+  "Mom Makeover": Heart,
   Colors: Palette,
   // Normal
   Trending: Flame,
@@ -38,13 +50,16 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   Podcasts: Mic,
 };
 
-// Broad YouTube search queries across all channels worldwide
+// Broad YouTube search queries across all channels worldwide (prioritizing Indian creators & transformations)
 const PRIVATE_CATEGORY_QUERIES: Record<string, string> = {
-  All: "women haircut transformation salon makeover bob undercut",
-  Short: "women short haircut pixie bob transformation salon makeover",
-  Long: "girls long hair haircut makeover transformation layers salon",
-  Undercut: "women undercut haircut nape buzz shave makeover salon",
-  Colors: "hair color transformation balayage blonde salon dye makeover",
+  All: "Indian women haircut transformation makeover | girls sideshave undercut | Indian fade haircut | bixie blonde pixie bob salon",
+  Short: "women bixie haircut | blonde pixie bob haircut transformation | mom pixie makeover | Indian salon short hair",
+  Undercut: "girls sideshave undercut | undercut with hair color | Indian girls nape buzz shave undercut | women undercut transformation",
+  "Sideshave & Fade": "girls sideshave undercut | Indian women fade haircut | Indian girls skin fade taper fade | side shave makeover salon",
+  "Bixie & Pixie": "women bixie cut transformation | Indian women pixie cut | blonde pixie haircut makeover | bixie bob salon",
+  "Mom Makeover": "mom pixie cut transformation | Indian mom haircut makeover | mom undercut makeover salon",
+  Colors: "undercut with hair color | women blonde pixie haircut | blonde bob haircut transformation | balayage makeover salon",
+  Long: "Indian girls long to short haircut makeover | extreme long hair transformation salon | layers bob",
 };
 
 // Confirmed Culture Cafe Studio Haircut Transformations
@@ -105,6 +120,29 @@ const PRIVATE_CATEGORY_PLAYLISTS: Record<string, string[]> = {
     "UUDIqXqP9PL9fNH7CfbGeFsQ", // Haircut story
     "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy
     "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
+  ],
+  "Sideshave & Fade": [
+    "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers (Sideshaves, Fades & Undercuts)
+    "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar (Buzzed nape & skin fades)
+    "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut (Buzzed sides & undercut)
+    "PLW77CFOjU1MEpngokZElo00dXvtZ-1Ml5", // The Happy Radio (Hair Tattoo & Fade Series)
+    "UUG9thQ9Ce-VSL8gHFSy1M_w", // Hair Salon Secrets
+    "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
+  ],
+  "Bixie & Pixie": [
+    "PLW77CFOjU1MEpngokZElo00dXvtZ-1Ml5", // The Happy Radio (Pixie & Bixie Series)
+    "UUCFFT7bZr09Tqo65vu5zPiQ", // Indian Girls Haircut (Bob & Pixie)
+    "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers
+    "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar
+    "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy
+    "UUUUOUXV5xmEqGWGf9eUyjdQ", // Sam Villa
+  ],
+  "Mom Makeover": [
+    "UUyxIgscUAeonLzrnMIcVV0A", // Desi Makeovers (Salon Makeovers)
+    "UUgRIzrQLT9FUjl9QT1Jq9aA", // Haarminnaar
+    "PLW77CFOjU1MEpngokZElo00dXvtZ-1Ml5", // The Happy Radio
+    "UU8HyecFpFcW5NfJTJjrftWw", // Girls Haircut
+    "UUmi9wFeEZCV9gMDO-Sw_F-w", // TheSalonGuy
   ],
   Colors: [
     "UUjzof44RG883SW61XlkP-Pg", // Guy Tang Hair Colors
@@ -306,6 +344,7 @@ export default function App() {
     isSyncing: isPlaylistSyncing,
     setFolderId,
     loadFromDrive: loadPlaylistsFromDrive,
+    clearDriveCache,
     toggleVideo: toggleVideoInPlaylist,
     toggleFav,
     isFav,
@@ -573,10 +612,12 @@ export default function App() {
         `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&fields=files(id,name,owners(displayName))&includeItemsFromAllDrives=true&supportsAllDrives=true`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      if (foldersRes.status === 401) {
-        setToken("");
-        sessionStorage.removeItem(TOKEN_KEY);
-        setAuthError("Session expired. Please sign in again.");
+      if (!foldersRes.ok) {
+        if (foldersRes.status === 401) {
+          setToken("");
+          sessionStorage.removeItem(TOKEN_KEY);
+          setAuthError("Session expired. Please sign in again.");
+        }
         return;
       }
 
@@ -846,6 +887,10 @@ export default function App() {
         }
       }
 
+      const prevEmail = localStorage.getItem("yt_email");
+      if (user.email && prevEmail && prevEmail !== user.email) {
+        clearDriveCache();
+      }
       setUserEmail(user.email ?? "");
       localStorage.setItem("yt_email", user.email ?? "");
 
@@ -863,6 +908,7 @@ export default function App() {
   });
 
   function signOut() {
+    clearDriveCache();
     setToken("");
     sessionStorage.removeItem(TOKEN_KEY);
     setDriveVideos([]);
@@ -1182,7 +1228,7 @@ export default function App() {
                   >
                     <span>{pName}</span>
                     <span className="text-[10px] opacity-75">
-                      ({(playlists[pName] || []).length})
+                      ({(Array.isArray(playlists[pName]) ? playlists[pName].length : 0)})
                     </span>
                   </button>
                 );
