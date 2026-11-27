@@ -3,7 +3,7 @@ import { useGoogleLogin } from "@react-oauth/google";
 import {
   Play, Search, Shuffle, Sparkles, FolderLock, TvMinimalPlay, LogIn,
   Sun, Moon, Lock, Unlock, ChevronDown, User, LogOut,
-  Scissors, Ruler, Zap, Palette, Heart,
+  Scissors, Ruler, Zap, Palette, Heart, X,
   Flame, Music, Gamepad2, Cpu, Newspaper, Mic,
   ListMusic, Trash2, Plus, RotateCw,
 } from "lucide-react";
@@ -283,6 +283,7 @@ export default function App() {
   const [source, setSource] = useState<SourceFilter>("blended");
   const [category, setCategory] = useState<string>("All");
   const [search, setSearch] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [sort, setSort] = useState<SortOrder>("default");
   const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
   const [activeChannel, setActiveChannel] = useState<{
@@ -312,6 +313,9 @@ export default function App() {
 
   const searchRefState = useRef(search);
   searchRefState.current = search;
+
+  const submittedQueryRef = useRef(submittedQuery);
+  submittedQueryRef.current = submittedQuery;
 
   const nextPageTokenRef = useRef(nextPageToken);
   nextPageTokenRef.current = nextPageToken;
@@ -385,7 +389,7 @@ export default function App() {
       const isNext = !!opts.isNextPage;
       const targetPrivate = opts.isPrivate !== undefined ? opts.isPrivate : privateModeRef.current;
       const targetCat = opts.cat !== undefined ? opts.cat : categoryRef.current;
-      const targetQuery = opts.query !== undefined ? opts.query : searchRefState.current;
+      const targetQuery = opts.query !== undefined ? opts.query : submittedQueryRef.current;
 
       const cacheKey = `${targetPrivate ? "priv" : "norm"}_${targetCat}_${targetQuery || "none"}_${isNext && nextPageTokenRef.current ? nextPageTokenRef.current : "init"}`;
 
@@ -419,9 +423,8 @@ export default function App() {
         const pageTokenParam = isNext && nextPageTokenRef.current ? `&pageToken=${nextPageTokenRef.current}` : "";
 
         if (targetQuery) {
-          // Explicit search entered by user: uses search.list (100 units)
-          const q = targetPrivate ? `${targetQuery} haircut makeover` : targetQuery;
-          url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=24&q=${encodeURIComponent(q)}${pageTokenParam}&key=${apiKey}`;
+          // Explicit global search on YouTube (Cost: 100 units)
+          url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=24&q=${encodeURIComponent(targetQuery)}${pageTokenParam}&key=${apiKey}`;
         } else if (targetPrivate) {
           // Broad YouTube search across ALL channels matching category queries
           const q = PRIVATE_CATEGORY_QUERIES[targetCat] || PRIVATE_CATEGORY_QUERIES.All;
@@ -439,6 +442,10 @@ export default function App() {
         const res = await fetch(url);
         const data = await res.json();
 
+        if (data.error) {
+          console.error("YouTube API Error:", data.error.message || data.error);
+        }
+
         const isQuotaErr =
           data.error?.code === 403 ||
           data.error?.code === 429 ||
@@ -452,8 +459,8 @@ export default function App() {
         if (isQuotaErr) {
           setYtQuotaExceeded(true);
 
-          // Graceful fallback: Show a rich dynamic mix across ALL predefined creators
-          if (targetPrivate) {
+          // Graceful fallback: Show a rich dynamic mix across predefined creators for category/home browsing
+          if (!targetQuery && targetPrivate) {
             try {
               const plList = PRIVATE_CATEGORY_PLAYLISTS[targetCat] || PRIVATE_CATEGORY_PLAYLISTS.All;
               const isPage2 = isNext && (nextPageTokenRef.current === "fb_page_2" || nextPageTokenRef.current?.startsWith("fb_"));
@@ -569,7 +576,7 @@ export default function App() {
             title: item.snippet.title,
             channel: item.snippet.channelTitle,
             channelId: item.snippet.channelId,
-            category: targetCat === "All" ? inferCategory(item.snippet.title) : targetCat,
+            category: targetQuery ? inferCategory(item.snippet.title) : (targetCat === "All" ? inferCategory(item.snippet.title) : targetCat),
             thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || "",
             duration: dur?.label,
             durationSec: dur?.sec,
@@ -767,17 +774,19 @@ export default function App() {
 
   // ── Filtering, Sorting & Pagination Memo ──────────────────────────────────
   const allFiltered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const isGlobalSearch = Boolean(submittedQuery && search.trim() === submittedQuery);
+    const filterTerm = search.trim().toLowerCase();
 
     const dFiltered = driveVideos.filter((v) => {
       const catOk = category === "All" || v.category === category;
-      const qOk = !q || v.title.toLowerCase().includes(q) || v.category.toLowerCase().includes(q);
+      const qOk = !filterTerm || v.title.toLowerCase().includes(filterTerm) || v.category.toLowerCase().includes(filterTerm);
       return catOk && qOk;
     });
 
     const ytFiltered = ytVideos.filter((v) => {
+      if (isGlobalSearch) return true;
       const catOk = category === "All" || v.category === category || !privateMode;
-      const qOk = !q || v.title.toLowerCase().includes(q) || v.channel.toLowerCase().includes(q);
+      const qOk = !filterTerm || v.title.toLowerCase().includes(filterTerm) || v.channel.toLowerCase().includes(filterTerm);
       return catOk && qOk;
     });
 
@@ -807,7 +816,7 @@ export default function App() {
     if (sort === "az") return [...list].sort((a, b) => a.title.localeCompare(b.title));
     if (sort === "duration") return [...list].sort((a, b) => (b.durationSec ?? 0) - (a.durationSec ?? 0));
     return list;
-  }, [driveVideos, ytVideos, source, category, search, sort, isFav, privateMode, playlists, selectedPlaylist]);
+  }, [driveVideos, ytVideos, source, category, search, submittedQuery, sort, isFav, privateMode, playlists, selectedPlaylist]);
 
   const displayedVideos = useMemo(
     () => allFiltered.slice(0, page * PAGE_SIZE),
@@ -926,6 +935,7 @@ export default function App() {
     setPrivateMode(next);
     setCategory("All");
     setSearch("");
+    setSubmittedQuery("");
     setActiveChannel(null);
     setPage(1);
     fetchYouTubeFeed({ isPrivate: next, cat: "All", query: "", isNextPage: false });
@@ -934,17 +944,25 @@ export default function App() {
   const handleCategoryClick = (cat: string) => {
     const newCat = category === cat ? "All" : cat;
     setCategory(newCat);
+    setSearch("");
+    setSubmittedQuery("");
     setActiveChannel(null);
     setPage(1);
-    fetchYouTubeFeed({ cat: newCat, isNextPage: false });
+    fetchYouTubeFeed({ cat: newCat, query: "", isNextPage: false });
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = search.trim();
+    if (!q) return;
+    setSubmittedQuery(q);
     setActiveChannel(null);
+    setCategory("All");
+    if (source === "drive" || source === "playlist" || source === "favourites") {
+      setSource("blended");
+    }
     setPage(1);
-    fetchYouTubeFeed({ query: q, isNextPage: false });
+    fetchYouTubeFeed({ query: q, cat: "All", isNextPage: false });
   };
 
   const playRandom = useCallback(() => {
@@ -1029,6 +1047,7 @@ export default function App() {
               setSource("blended");
               setCategory("All");
               setSearch("");
+              setSubmittedQuery("");
               setPage(1);
               fetchYouTubeFeed({ query: "", cat: "All", isNextPage: false });
             }}
@@ -1051,26 +1070,46 @@ export default function App() {
               type="text"
               value={search}
               onChange={(e) => {
-                setSearch(e.target.value);
-                if (!e.target.value) {
-                  fetchYouTubeFeed({ query: "", isNextPage: false });
+                const val = e.target.value;
+                setSearch(val);
+                if (!val.trim()) {
+                  setSubmittedQuery("");
+                  fetchYouTubeFeed({ query: "", cat: "All", isNextPage: false });
                 }
               }}
               placeholder="Search · press / to focus"
-              className="w-full rounded-full py-1.5 pl-4 pr-10 text-sm outline-none transition-colors"
+              className="w-full rounded-full py-1.5 pl-4 pr-16 text-sm outline-none transition-colors"
               style={{
                 backgroundColor: "var(--c-card)",
                 border: "1px solid var(--c-border)",
                 color: "var(--c-text)",
               }}
             />
-            <button
-              type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-              style={{ color: "var(--c-muted)" }}
-            >
-              <Search className="w-4 h-4" />
-            </button>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setSubmittedQuery("");
+                    fetchYouTubeFeed({ query: "", cat: "All", isNextPage: false });
+                  }}
+                  className="p-1 rounded-full hover:opacity-80 transition cursor-pointer"
+                  style={{ color: "var(--c-muted)" }}
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                type="submit"
+                className="p-1 rounded-full hover:opacity-80 transition cursor-pointer"
+                style={{ color: "var(--c-muted)" }}
+                title="Search YouTube globally"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </div>
           </form>
 
           {/* Right Action Controls */}
